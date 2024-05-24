@@ -1,0 +1,17 @@
+# File system
+.DS_Store
+
+# Editor
+.vscode
+*.code-workspace
+
+# Cargo
+Cargo.lock
+
+# Build
+/target
+
+# Coverage
+*.profraw
+*.profdata
+tarpaulin-report.html
