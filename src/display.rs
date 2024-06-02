@@ -5,4 +5,3 @@ pub use self::displayer::Displayer;
 mod text;
 mod canvas;
 mod displayer;
-mod error;

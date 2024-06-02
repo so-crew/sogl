@@ -4,10 +4,11 @@ use std::vec;
 
 use crate::error::Error;
 
-use super::error::CHARSET_NOT_SET_ERROR;
-use super::error::OUTPUT_NOT_SET_ERROR;
 use super::Canvas;
 use super::Displayer;
+
+pub const CHARSET_NOT_SET_ERROR: Error = Error{message: "charset not set"};
+pub const OUTPUT_NOT_SET_ERROR: Error = Error{message: "output not set"};
 
 pub const DEFAULT_CHARSET: &str = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
 
@@ -77,5 +78,28 @@ impl<'a> Displayer for TextDisplay<'a> {
         }
         
         let _ = self.output_stream.write(&buffer);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::*;
+
+    #[test]
+    fn test_build_text_displayer() {
+        let result = TextDisplayBuilder::new().build();
+        assert!(matches!(result, Err(CHARSET_NOT_SET_ERROR)));
+
+        let result = TextDisplayBuilder::new().set_charset(&DEFAULT_CHARSET).build();
+        assert!(matches!(result, Err(OUTPUT_NOT_SET_ERROR)));
+
+        let mut stream = io::stdout();
+        let result = TextDisplayBuilder::new()
+            .set_charset(&DEFAULT_CHARSET)
+            .set_output_stream(&mut stream).build();
+
+        assert!(matches!(result, Ok(_)));
     }
 }
