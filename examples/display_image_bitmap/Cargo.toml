@@ -1,0 +1,11 @@
+[package]
+name = "display_image_bitmap"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sogl = {path = "../.."}
+
+[[bin]]
+name = "display_image_bitmap"
+path = "main.rs"
