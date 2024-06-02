@@ -6,7 +6,7 @@ use sogl::display::{Canvas, CanvasCoordinate, Displayer, TextDisplayBuilder, DEF
 use sogl::model::Color;
 
 fn main() {
-    let size: usize = 100;
+    let size = 100;
 
     let mut subject = Canvas::new(size, size);
 
@@ -20,11 +20,11 @@ fn main() {
         }
     }
 
-    let mut stream = io::stdout().lock();
+    let stream = &mut io::stdout().lock();
 
     let displayer = TextDisplayBuilder::new()
         .set_charset(DEFAULT_CHARSET)
-        .set_output_stream(&mut stream)
+        .set_output(stream)
         .build()
         .unwrap();
 
