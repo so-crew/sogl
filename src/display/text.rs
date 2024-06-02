@@ -1,6 +1,11 @@
 use std::io::Write;
 use std::u8;
+use std::vec;
 
+use crate::error::Error;
+
+use super::error::CHARSET_NOT_SET_ERROR;
+use super::error::OUTPUT_NOT_SET_ERROR;
 use super::Canvas;
 use super::Displayer;
 
@@ -8,12 +13,12 @@ pub const DEFAULT_CHARSET: &str = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|(
 
 pub struct TextDisplay<'a> {
     charset: &'static str,
-    output_stream: Box<&'a mut dyn Write>,
+    output_stream: &'a mut dyn Write,
 }
 
 pub struct TextDisplayBuilder<'a> {
     charset: &'static str,
-    output_stream: Option<Box<&'a mut dyn Write>>,
+    output_stream: Option<&'a mut dyn Write>,
 }
 
 impl<'a> TextDisplayBuilder<'a> {
@@ -24,51 +29,53 @@ impl<'a> TextDisplayBuilder<'a> {
         }
     }
 
-    pub fn default() -> TextDisplayBuilder<'a> {
-        TextDisplayBuilder{
-            charset: DEFAULT_CHARSET,
-            output_stream: None,
-        }
+    pub fn set_charset(mut self, charset: &'static str) -> TextDisplayBuilder<'a> {
+        self.charset = charset;
+        self
     }
 
-    pub fn set_output_stream(&self, stream: Box<&'a mut dyn Write>) -> TextDisplayBuilder<'a> {
-        TextDisplayBuilder {
-            charset: self.charset,
-            output_stream: Some(stream),
-        }
+    pub fn set_output_stream(mut self, stream: &'a mut dyn Write) -> TextDisplayBuilder<'a> {
+        self.output_stream = Some(stream);
+        self
     }
 
-    pub fn build(self) -> TextDisplay<'a> {
+    pub fn build(self) -> Result<TextDisplay<'a>, Error> {
+        if self.charset.len() == 0 {
+            return Err(CHARSET_NOT_SET_ERROR);
+        }
+        
         match self.output_stream {
-            Some(stream) => TextDisplay {
+            Some(stream) => Ok(TextDisplay{
                 charset: self.charset,
                 output_stream: stream,
-            },
-            None => todo!(),
+            }),
+            None => Err(OUTPUT_NOT_SET_ERROR),
         }
     }
 }
 
 impl<'a> Displayer for TextDisplay<'a> {
-    fn show(mut self, c: &Canvas) {
+    fn show(self, c: &Canvas) {
         let charset_len = self.charset.len();
+        let buffer_size = c.height * (c.width + 1);
+        let mut buffer = vec![u8::default(); buffer_size];
 
-        let mut buffer: String = String::new();
-        for i in 0..c.height {
-            for j in 0..c.width {
-                let value = c.content.get(i * c.height + j);
-                match value {
-                    Some(color) => {
-                        let idx = color.grayscale() as usize * charset_len as usize / u8::MAX as usize;
-                        let pixel = self.charset.to_string().chars().nth(idx).unwrap();
-                        buffer += pixel.to_string().as_str();
-                    },
-                    None => buffer += " ",
-                }
+        for i in 0..buffer_size {
+            if i % (c.width + 1) == 0 {
+                buffer[i] = b'\n';
+                continue;
             }
-            buffer += "\n";
+
+            match c.content.get(i - i / (c.width + 1)) {
+                Some(color) => {
+                    let value_index = color.grayscale() as usize * charset_len as usize / u8::MAX as usize;
+                    let value = self.charset.chars().nth(value_index).unwrap();
+                    buffer[i] = value as u8;
+                },
+                None => buffer[i] = b' ',
+            }
         }
         
-        let _ = self.output_stream.write(buffer.as_bytes());
+        let _ = self.output_stream.write(&buffer);
     }
 }

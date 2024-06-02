@@ -8,6 +8,10 @@ pub struct Canvas {
 
 impl Canvas {
     pub fn new(width: usize, height: usize) -> Canvas {
-        Canvas{width, height, content: Vec::new()}
+        Canvas{width, height, content: vec![Color::default(); width*height]}
+    }
+
+    pub fn set_content(&mut self, x: usize, y: usize, c: &Color) {
+        self.content[x * self.width + y] = c.clone();
     }
 }

@@ -1,5 +1,12 @@
+#[derive(Clone, Debug)]
 pub struct Color {
     value: u32,
+}
+
+impl Default for Color {
+    fn default() -> Color {
+        Color{value: 0}
+    }
 }
 
 impl Color {
