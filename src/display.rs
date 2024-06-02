@@ -1,7 +1,7 @@
-pub use self::canvas::Canvas;
-pub use self::text::{TextDisplay, TextDisplayBuilder, DEFAULT_CHARSET};
-pub use self::displayer::Displayer;
+pub use self::canvas::*;
+pub use self::displayer::*;
+pub use self::text::*;
 
-mod text;
 mod canvas;
 mod displayer;
+mod text;

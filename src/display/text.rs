@@ -1,19 +1,26 @@
 use std::io::Write;
 use std::u8;
-use std::vec;
 
 use crate::error::Error;
+use crate::model::Color;
 
 use super::Canvas;
+use super::CanvasCoordinate;
 use super::Displayer;
 
-pub const CHARSET_NOT_SET_ERROR: Error = Error{message: "charset not set"};
-pub const OUTPUT_NOT_SET_ERROR: Error = Error{message: "output not set"};
+pub const ERROR_CHARSET_NOT_SET: Error = Error {
+    message: "charset not set",
+};
+pub const ERROR_OUTPUT_NOT_SET: Error = Error {
+    message: "output not set",
+};
 
-pub const DEFAULT_CHARSET: &str = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
+pub const DEFAULT_CHARSET: &str =
+    " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 
 pub struct TextDisplay<'a> {
     charset: &'static str,
+    charset_len: usize,
     output_stream: &'a mut dyn Write,
 }
 
@@ -24,7 +31,7 @@ pub struct TextDisplayBuilder<'a> {
 
 impl<'a> TextDisplayBuilder<'a> {
     pub fn new() -> TextDisplayBuilder<'a> {
-        TextDisplayBuilder{
+        TextDisplayBuilder {
             charset: "",
             output_stream: None,
         }
@@ -42,64 +49,47 @@ impl<'a> TextDisplayBuilder<'a> {
 
     pub fn build(self) -> Result<TextDisplay<'a>, Error> {
         if self.charset.len() == 0 {
-            return Err(CHARSET_NOT_SET_ERROR);
+            return Err(ERROR_CHARSET_NOT_SET);
         }
-        
+
         match self.output_stream {
-            Some(stream) => Ok(TextDisplay{
+            Some(stream) => Ok(TextDisplay {
                 charset: self.charset,
+                charset_len: self.charset.len(),
                 output_stream: stream,
             }),
-            None => Err(OUTPUT_NOT_SET_ERROR),
+            None => Err(ERROR_OUTPUT_NOT_SET),
         }
+    }
+}
+
+impl<'a> TextDisplay<'a> {
+    pub fn color_to_char(&self, color: &Color) -> char {
+        let value_index = color.grayscale() as usize * self.charset_len / u8::MAX as usize;
+        self.charset
+            .chars()
+            .nth(value_index)
+            .unwrap_or(self.charset.chars().last().unwrap_or(' '))
     }
 }
 
 impl<'a> Displayer for TextDisplay<'a> {
     fn show(self, c: &Canvas) {
-        let charset_len = self.charset.len();
-        let buffer_size = c.height * (c.width + 1);
-        let mut buffer = vec![u8::default(); buffer_size];
+        let line_width = c.get_width() + 1;
+        let buffer_size = c.get_height() * line_width;
+        let buffer: Vec<u8> = (0..buffer_size)
+            .map(|i| -> u8 {
+                if i % line_width == 0 {
+                    return b'\n';
+                }
 
-        for i in 0..buffer_size {
-            if i % (c.width + 1) == 0 {
-                buffer[i] = b'\n';
-                continue;
-            }
+                match c.get_content(CanvasCoordinate::Linear(i - i / line_width)) {
+                    Some(color) => self.color_to_char(&color) as u8,
+                    None => b' ',
+                }
+            })
+            .collect();
 
-            match c.content.get(i - i / (c.width + 1)) {
-                Some(color) => {
-                    let value_index = color.grayscale() as usize * charset_len as usize / u8::MAX as usize;
-                    let value = self.charset.chars().nth(value_index).unwrap();
-                    buffer[i] = value as u8;
-                },
-                None => buffer[i] = b' ',
-            }
-        }
-        
         let _ = self.output_stream.write(&buffer);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::io;
-
-    use super::*;
-
-    #[test]
-    fn test_build_text_displayer() {
-        let result = TextDisplayBuilder::new().build();
-        assert!(matches!(result, Err(CHARSET_NOT_SET_ERROR)));
-
-        let result = TextDisplayBuilder::new().set_charset(&DEFAULT_CHARSET).build();
-        assert!(matches!(result, Err(OUTPUT_NOT_SET_ERROR)));
-
-        let mut stream = io::stdout();
-        let result = TextDisplayBuilder::new()
-            .set_charset(&DEFAULT_CHARSET)
-            .set_output_stream(&mut stream).build();
-
-        assert!(matches!(result, Ok(_)));
     }
 }

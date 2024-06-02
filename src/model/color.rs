@@ -5,17 +5,14 @@ pub struct Color {
 
 impl Default for Color {
     fn default() -> Color {
-        Color{value: 0}
+        Color { value: 0 }
     }
 }
 
 impl Color {
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Color {
-        Color { value:
-            (u32::from(r) << 24) + 
-            (u32::from(g) << 16) + 
-            (u32::from(b) << 8) + 
-            u32::from(a)
+        Color {
+            value: (u32::from(r) << 24) + (u32::from(g) << 16) + (u32::from(b) << 8) + u32::from(a),
         }
     }
 
