@@ -1,0 +1,11 @@
+[package]
+name = "display_text_stdout"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sogl = {path = "../.."}
+
+[[bin]]
+name = "display_text_stdout"
+path = "main.rs"
