@@ -19,7 +19,7 @@ fn main() {
     }
 
     let file = &mut File::create("./out.txt").unwrap();
-    let displayer = TextDisplayBuilder::new()
+    let mut displayer = TextDisplayBuilder::new()
         .set_charset(DEFAULT_CHARSET)
         .set_output(file)
         .build()

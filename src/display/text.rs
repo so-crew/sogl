@@ -72,7 +72,7 @@ impl<'a> TextDisplay<'a> {
 }
 
 impl<'a> Displayer for TextDisplay<'a> {
-    fn show(self, c: &Canvas) {
+    fn show(&mut self, c: &Canvas) {
         let line_width = c.get_width() + 1;
         let buffer_size = c.get_height() * line_width;
         let buffer: Vec<u8> = (0..buffer_size)

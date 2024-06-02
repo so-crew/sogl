@@ -2,7 +2,7 @@ use std::fs::File;
 
 use sogl::{
     display::{
-        BitmapBitsPerPixel, BitmapOptions, Canvas, CanvasCoordinate, Displayer,
+        BitmapBitsPerPixel, BitmapCompression, BitmapOptions, Canvas, CanvasCoordinate, Displayer,
         ImageDisplayBuilder, ImageFormat,
     },
     model::Color,
@@ -22,14 +22,12 @@ fn main() {
 
     let file = &mut File::create("out.bmp").unwrap();
 
-    let displayer = ImageDisplayBuilder::new()
+    let mut displayer = ImageDisplayBuilder::new()
         .set_image_format(ImageFormat::Bitmap(BitmapOptions {
             bits_per_pixel: BitmapBitsPerPixel::Rgb24Bit,
-            compression: 0,
+            compression: BitmapCompression::BIRGB,
             x_pixels_per_meter: u16::MAX as u32,
             y_pixels_per_meter: u16::MAX as u32,
-            colors_used: 0,
-            important_colors: 0,
         }))
         .set_output(file)
         .build()

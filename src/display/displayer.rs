@@ -7,5 +7,5 @@ pub const ERROR_OUTPUT_NOT_SET: Error = Error {
 };
 
 pub trait Displayer {
-    fn show(self, c: &Canvas);
+    fn show(&mut self, c: &Canvas);
 }

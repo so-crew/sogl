@@ -55,19 +55,27 @@ impl BitmapBitsPerPixel {
     }
 }
 
-type BitmapCompression = u32;
+pub enum BitmapCompression {
+    BIRGB,
+    BIRLE8,
+    BIRLE4,
+}
 
-pub const BIRGB: BitmapCompression = 0x0000;
-pub const BIRLE8: BitmapCompression = 0x0001;
-pub const BIRLE4: BitmapCompression = 0x0002;
+impl BitmapCompression {
+    fn value(&self) -> u32 {
+        match *self {
+            BitmapCompression::BIRGB => 0,
+            BitmapCompression::BIRLE8 => 1,
+            BitmapCompression::BIRLE4 => 2,
+        }
+    }
+}
 
 pub struct BitmapOptions {
     pub bits_per_pixel: BitmapBitsPerPixel,
     pub compression: BitmapCompression,
     pub x_pixels_per_meter: u32,
     pub y_pixels_per_meter: u32,
-    pub colors_used: u32,
-    pub important_colors: u32,
 }
 
 pub enum ImageFormat {
@@ -117,8 +125,8 @@ impl<'a> ImageDisplayBuilder<'a> {
 }
 
 impl<'a> Displayer for ImageDisplay<'a> {
-    fn show(self, c: &Canvas) {
-        match self.image_format {
+    fn show(&mut self, c: &Canvas) {
+        match &self.image_format {
             ImageFormat::Bitmap(opt) => {
                 let image_size = c.get_size() as u32 * opt.bits_per_pixel.byte_per_pixel() as u32;
                 let file_size = (BITMAP_HEADER_LEN + BITMAP_INFO_HEADER_LEN) as u32 + image_size;
@@ -142,11 +150,11 @@ impl<'a> Displayer for ImageDisplay<'a> {
                         &c.get_height().to_le_bytes()[0..4],
                         &BITMAP_NUMBER_OF_PLANE[..],
                         &opt.bits_per_pixel.value().to_le_bytes(),
-                        &opt.compression.to_le_bytes(),
+                        &opt.compression.value().to_le_bytes(),
                         &image_size.to_le_bytes(),
                         &opt.x_pixels_per_meter.to_le_bytes(),
                         &opt.y_pixels_per_meter.to_le_bytes(),
-                        &opt.colors_used.to_le_bytes(),
+                        &opt.bits_per_pixel.colors_used().to_le_bytes(),
                         &opt.bits_per_pixel.important_colors().to_le_bytes(),
                     ]
                     .concat(),
