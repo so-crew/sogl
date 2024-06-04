@@ -12,7 +12,7 @@ mod text_displayer_tests {
     use super::*;
 
     #[test]
-    fn test_build_text_displayer_no_charset() {
+    fn test_color_to_char() {
         let dark = Color::new(0, 0, 0, u8::MAX);
         let medium = Color::new(120, 120, 120, u8::MAX);
         let light = Color::new(u8::MAX, u8::MAX, u8::MAX, u8::MAX);
@@ -20,7 +20,7 @@ mod text_displayer_tests {
         let mut stream = io::stdout();
         let displayer = TextDisplayBuilder::new()
             .set_charset("123")
-            .set_output_stream(&mut stream)
+            .set_output(&mut stream)
             .build()
             .unwrap();
 
@@ -53,7 +53,7 @@ mod text_displayer_builder_tests {
         let mut stream = io::stdout();
         let result = TextDisplayBuilder::new()
             .set_charset(&DEFAULT_CHARSET)
-            .set_output_stream(&mut stream)
+            .set_output(&mut stream)
             .build();
 
         assert!(matches!(result, Ok(_)));

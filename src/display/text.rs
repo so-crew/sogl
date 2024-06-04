@@ -7,12 +7,10 @@ use crate::model::Color;
 use super::Canvas;
 use super::CanvasCoordinate;
 use super::Displayer;
+use super::ERROR_OUTPUT_NOT_SET;
 
 pub const ERROR_CHARSET_NOT_SET: Error = Error {
     message: "charset not set",
-};
-pub const ERROR_OUTPUT_NOT_SET: Error = Error {
-    message: "output not set",
 };
 
 pub const DEFAULT_CHARSET: &str =
@@ -21,19 +19,19 @@ pub const DEFAULT_CHARSET: &str =
 pub struct TextDisplay<'a> {
     charset: &'static str,
     charset_len: usize,
-    output_stream: &'a mut dyn Write,
+    output: &'a mut dyn Write,
 }
 
 pub struct TextDisplayBuilder<'a> {
     charset: &'static str,
-    output_stream: Option<&'a mut dyn Write>,
+    output: Option<&'a mut dyn Write>,
 }
 
 impl<'a> TextDisplayBuilder<'a> {
     pub fn new() -> TextDisplayBuilder<'a> {
         TextDisplayBuilder {
             charset: "",
-            output_stream: None,
+            output: None,
         }
     }
 
@@ -42,8 +40,8 @@ impl<'a> TextDisplayBuilder<'a> {
         self
     }
 
-    pub fn set_output_stream(mut self, stream: &'a mut dyn Write) -> TextDisplayBuilder<'a> {
-        self.output_stream = Some(stream);
+    pub fn set_output(mut self, stream: &'a mut dyn Write) -> TextDisplayBuilder<'a> {
+        self.output = Some(stream);
         self
     }
 
@@ -52,11 +50,11 @@ impl<'a> TextDisplayBuilder<'a> {
             return Err(ERROR_CHARSET_NOT_SET);
         }
 
-        match self.output_stream {
+        match self.output {
             Some(stream) => Ok(TextDisplay {
                 charset: self.charset,
                 charset_len: self.charset.len(),
-                output_stream: stream,
+                output: stream,
             }),
             None => Err(ERROR_OUTPUT_NOT_SET),
         }
@@ -74,7 +72,7 @@ impl<'a> TextDisplay<'a> {
 }
 
 impl<'a> Displayer for TextDisplay<'a> {
-    fn show(self, c: &Canvas) {
+    fn show(&mut self, c: &Canvas) {
         let line_width = c.get_width() + 1;
         let buffer_size = c.get_height() * line_width;
         let buffer: Vec<u8> = (0..buffer_size)
@@ -90,6 +88,6 @@ impl<'a> Displayer for TextDisplay<'a> {
             })
             .collect();
 
-        let _ = self.output_stream.write(&buffer);
+        let _ = self.output.write(&buffer);
     }
 }

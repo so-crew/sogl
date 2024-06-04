@@ -1,4 +1,4 @@
-use std::usize;
+use std::{usize, vec};
 
 use crate::{error::Error, model::Color};
 
@@ -32,6 +32,10 @@ impl Canvas {
 
     pub fn get_width(&self) -> usize {
         self.width
+    }
+
+    pub fn get_size(&self) -> usize {
+        self.width * self.height
     }
 
     pub fn set_content(&mut self, coord: CanvasCoordinate, color: &Color) -> Result<(), Error> {
@@ -70,5 +74,9 @@ impl Canvas {
                 Some(self.content[i].clone())
             }
         }
+    }
+
+    pub fn get_contents(&self) -> &Vec<Color> {
+        &self.content
     }
 }
