@@ -8,13 +8,13 @@ pub const ERROR_IMAGE_FORMAT_NOT_SET: Error = Error {
     message: "image format not set",
 };
 
-const BITMAP_HEADER_LEN: usize = 14;
-const BITMAP_INFO_HEADER_LEN: usize = 40;
+const BITMAP_HEADER_LEN: u32 = 14;
+const BITMAP_INFO_HEADER_LEN: u32 = 40;
 
-const BITMAP_FILE_SIGNATURE: &[u8] = &[b'B', b'M'];
-const BITMAP_NUMBER_OF_PLANE: &[u8] = &[0x01, 0x00];
-const BITMAP_IMAGE_DATA_OFFET: &[u8] = &[0x36, 0x00, 0x00, 0x00];
-const BITMAP_EMPTY_4BYTES: &[u8] = &[0x00, 0x00, 0x00, 0x00];
+const BITMAP_FILE_SIGNATURE: u16 = 0x4D42;
+const BITMAP_NUMBER_OF_PLANE: u16 = 0x0001;
+const BITMAP_IMAGE_DATA_OFFET: u32 = 0x00000036;
+const BITMAP_EMPTY_4BYTES: u32 = 0x00000000;
 
 #[derive(Clone, Copy)]
 pub enum BitmapBitsPerPixel {
@@ -129,35 +129,40 @@ impl<'a> Displayer for ImageDisplay<'a> {
         match &self.image_format {
             ImageFormat::Bitmap(opt) => {
                 let image_size = c.get_size() as u32 * opt.bits_per_pixel.byte_per_pixel() as u32;
-                let file_size = (BITMAP_HEADER_LEN + BITMAP_INFO_HEADER_LEN) as u32 + image_size;
+                let file_size = BITMAP_HEADER_LEN + BITMAP_INFO_HEADER_LEN + image_size;
 
                 // Write header
                 let _ = self.output.write(
-                    &[
-                        &BITMAP_FILE_SIGNATURE[..],
-                        &file_size.to_le_bytes(),
-                        &BITMAP_EMPTY_4BYTES,
-                        &BITMAP_IMAGE_DATA_OFFET,
+                    [
+                        BITMAP_FILE_SIGNATURE.to_le_bytes().as_slice(),
+                        file_size.to_le_bytes().as_slice(),
+                        BITMAP_EMPTY_4BYTES.to_le_bytes().as_slice(),
+                        BITMAP_IMAGE_DATA_OFFET.to_le_bytes().as_slice(),
                     ]
-                    .concat(),
+                    .concat()
+                    .as_slice(),
                 );
 
                 // Write info header
                 let _ = self.output.write(
-                    &[
-                        &BITMAP_INFO_HEADER_LEN.to_le_bytes()[0..4],
-                        &c.get_width().to_le_bytes()[0..4],
-                        &c.get_height().to_le_bytes()[0..4],
-                        &BITMAP_NUMBER_OF_PLANE[..],
-                        &opt.bits_per_pixel.value().to_le_bytes(),
-                        &opt.compression.value().to_le_bytes(),
-                        &image_size.to_le_bytes(),
-                        &opt.x_pixels_per_meter.to_le_bytes(),
-                        &opt.y_pixels_per_meter.to_le_bytes(),
-                        &opt.bits_per_pixel.colors_used().to_le_bytes(),
-                        &opt.bits_per_pixel.important_colors().to_le_bytes(),
+                    [
+                        BITMAP_INFO_HEADER_LEN.to_le_bytes().as_slice(),
+                        c.get_width().to_le_bytes().split_at(4).0,
+                        c.get_height().to_le_bytes().split_at(4).0,
+                        BITMAP_NUMBER_OF_PLANE.to_le_bytes().as_slice(),
+                        opt.bits_per_pixel.value().to_le_bytes().as_slice(),
+                        opt.compression.value().to_le_bytes().as_slice(),
+                        image_size.to_le_bytes().as_slice(),
+                        opt.x_pixels_per_meter.to_le_bytes().as_slice(),
+                        opt.y_pixels_per_meter.to_le_bytes().as_slice(),
+                        opt.bits_per_pixel.colors_used().to_le_bytes().as_slice(),
+                        opt.bits_per_pixel
+                            .important_colors()
+                            .to_le_bytes()
+                            .as_slice(),
                     ]
-                    .concat(),
+                    .concat()
+                    .as_slice(),
                 );
 
                 // Write pixel data
@@ -166,20 +171,22 @@ impl<'a> Displayer for ImageDisplay<'a> {
                     BitmapBitsPerPixel::Palletize4Bit => todo!(),
                     BitmapBitsPerPixel::Palletize8Bit => {
                         let _ = self.output.write(
-                            &c.get_contents()
+                            c.get_contents()
                                 .into_iter()
                                 .map(|c| c.grayscale())
-                                .collect::<Vec<u8>>(),
+                                .collect::<Vec<u8>>()
+                                .as_slice(),
                         );
                     }
                     BitmapBitsPerPixel::Rgb16Bit => todo!(),
                     BitmapBitsPerPixel::Rgb24Bit => {
                         let _ = self.output.write(
-                            &c.get_contents()
+                            c.get_contents()
                                 .into_iter()
                                 .map(|c| [c.blue(), c.green(), c.red()])
                                 .collect::<Vec<[u8; 3]>>()
-                                .concat(),
+                                .concat()
+                                .as_slice(),
                         );
                     }
                 }
