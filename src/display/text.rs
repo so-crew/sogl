@@ -1,3 +1,5 @@
+use std::io::stdout;
+use std::io::Stdout;
 use std::io::Write;
 use std::u8;
 
@@ -16,36 +18,49 @@ pub const ERROR_CHARSET_NOT_SET: Error = Error {
 pub const DEFAULT_CHARSET: &str =
     " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 
-pub struct TextDisplay<'a> {
+pub struct TextDisplay<T: Write> {
     charset: &'static str,
     charset_len: usize,
-    output: &'a mut dyn Write,
+    output: T,
 }
 
-pub struct TextDisplayBuilder<'a> {
+pub struct TextDisplayBuilder<T: Write = Stdout> {
     charset: &'static str,
-    output: Option<&'a mut dyn Write>,
+    output: Option<T>,
 }
 
-impl<'a> TextDisplayBuilder<'a> {
-    pub fn new() -> TextDisplayBuilder<'a> {
+impl Default for TextDisplayBuilder {
+    fn default() -> Self {
+        Self {
+            charset: &DEFAULT_CHARSET,
+            output: Some(stdout()),
+        }
+    }
+}
+
+impl TextDisplayBuilder {
+    pub fn new() -> TextDisplayBuilder {
         TextDisplayBuilder {
             charset: "",
             output: None,
         }
     }
 
-    pub fn set_charset(mut self, charset: &'static str) -> TextDisplayBuilder<'a> {
+    pub fn set_charset(mut self, charset: &'static str) -> TextDisplayBuilder {
         self.charset = charset;
         self
     }
 
-    pub fn set_output(mut self, stream: &'a mut dyn Write) -> TextDisplayBuilder<'a> {
-        self.output = Some(stream);
-        self
+    pub fn set_output<T: Write>(self, stream: T) -> TextDisplayBuilder<T> {
+        TextDisplayBuilder {
+            charset: self.charset,
+            output: Some(stream),
+        }
     }
+}
 
-    pub fn build(self) -> Result<TextDisplay<'a>, Error> {
+impl<T: Write> TextDisplayBuilder<T> {
+    pub fn build(self) -> Result<TextDisplay<T>, Error> {
         if self.charset.len() == 0 {
             return Err(ERROR_CHARSET_NOT_SET);
         }
@@ -61,9 +76,9 @@ impl<'a> TextDisplayBuilder<'a> {
     }
 }
 
-impl<'a> TextDisplay<'a> {
+impl<T: Write> TextDisplay<T> {
     pub fn color_to_char(&self, color: &Color) -> char {
-        let value_index = color.grayscale() as usize * self.charset_len / u8::MAX as usize;
+        let value_index = color.intensity() as usize * self.charset_len / u8::MAX as usize;
         self.charset
             .chars()
             .nth(value_index)
@@ -71,7 +86,7 @@ impl<'a> TextDisplay<'a> {
     }
 }
 
-impl<'a> Displayer for TextDisplay<'a> {
+impl<T: Write> Displayer for TextDisplay<T> {
     fn show(&mut self, c: &Canvas) {
         let line_width = c.get_width() + 1;
         let buffer_size = c.get_height() * line_width;

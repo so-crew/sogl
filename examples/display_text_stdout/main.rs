@@ -20,7 +20,7 @@ fn main() {
         }
     }
 
-    let stream = &mut io::stdout().lock();
+    let stream = io::stdout().lock();
 
     let mut displayer = TextDisplayBuilder::new()
         .set_charset(DEFAULT_CHARSET)

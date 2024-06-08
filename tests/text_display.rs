@@ -17,10 +17,10 @@ mod text_displayer_tests {
         let medium = Color::new(120, 120, 120, u8::MAX);
         let light = Color::new(u8::MAX, u8::MAX, u8::MAX, u8::MAX);
 
-        let mut stream = io::stdout();
+        let stream = io::stdout();
         let displayer = TextDisplayBuilder::new()
             .set_charset("123")
-            .set_output(&mut stream)
+            .set_output(stream)
             .build()
             .unwrap();
 
@@ -32,6 +32,8 @@ mod text_displayer_tests {
 
 #[cfg(test)]
 mod text_displayer_builder_tests {
+    use std::fs::{self, File};
+
     use super::*;
 
     #[test]
@@ -49,12 +51,30 @@ mod text_displayer_builder_tests {
     }
 
     #[test]
-    fn test_build_text_displayer_success() {
-        let mut stream = io::stdout();
+    fn test_build_default_text_displayer_success() {
+        let result = TextDisplayBuilder::default().build();
+        assert!(matches!(result, Ok(_)));
+    }
+
+    #[test]
+    fn test_build_stdout_text_displayer_success() {
+        let stream = io::stdout();
         let result = TextDisplayBuilder::new()
             .set_charset(&DEFAULT_CHARSET)
-            .set_output(&mut stream)
+            .set_output(stream)
             .build();
+
+        assert!(matches!(result, Ok(_)));
+    }
+
+    #[test]
+    fn test_build_file_text_displayer_success() {
+        let stream = File::create("test.txt").unwrap();
+        let result = TextDisplayBuilder::new()
+            .set_charset(&DEFAULT_CHARSET)
+            .set_output(stream)
+            .build();
+        let _ = fs::remove_file("test.txt");
 
         assert!(matches!(result, Ok(_)));
     }

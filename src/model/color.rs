@@ -32,7 +32,7 @@ impl Color {
         (self.value & 0x000000FF) as u8
     }
 
-    pub fn grayscale(&self) -> u8 {
+    pub fn intensity(&self) -> u8 {
         let temp: u16 = self.red() as u16 + self.green() as u16 + self.blue() as u16;
         (temp / 3) as u8
     }
