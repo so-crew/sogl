@@ -14,7 +14,7 @@ fn main() {
 
     for i in 0..size.pow(2) {
         let val = (i % 256) as u8;
-        let _ = subject.set_content(CanvasCoordinate::Linear(i), &Color::new(val, 0, 0, u8::MAX));
+        let _ = subject.set_content(CanvasCoordinate::Linear(i), Color::new(val, 0, 0, u8::MAX));
     }
 
     let file = File::create("out.bmp").unwrap();
@@ -25,5 +25,5 @@ fn main() {
         .build()
         .unwrap();
 
-    displayer.show(&subject);
+    let _ = displayer.show(&subject);
 }

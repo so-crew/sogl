@@ -1,8 +1,6 @@
 extern crate sogl;
 
-use sogl::display::{
-    TextDisplayBuilder, DEFAULT_CHARSET, ERROR_CHARSET_NOT_SET, ERROR_OUTPUT_NOT_SET,
-};
+use sogl::display::{TextDisplayBuilder, DEFAULT_CHARSET};
 use std::io;
 
 #[cfg(test)]
@@ -34,20 +32,23 @@ mod text_displayer_tests {
 mod text_displayer_builder_tests {
     use std::fs::{self, File};
 
+    use sogl::error::Error;
+
     use super::*;
 
     #[test]
     fn test_build_text_displayer_no_charset() {
-        let result = TextDisplayBuilder::new().build();
-        assert!(matches!(result, Err(ERROR_CHARSET_NOT_SET)));
+        let result = TextDisplayBuilder::new().build().unwrap_err();
+        assert!(matches!(result, Error::MissingParams(_)));
     }
 
     #[test]
     fn test_build_text_displayer_no_output() {
         let result = TextDisplayBuilder::new()
             .set_charset(&DEFAULT_CHARSET)
-            .build();
-        assert!(matches!(result, Err(ERROR_OUTPUT_NOT_SET)));
+            .build()
+            .unwrap_err();
+        assert!(matches!(result, Error::MissingParams(_)));
     }
 
     #[test]

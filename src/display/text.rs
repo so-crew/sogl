@@ -4,20 +4,17 @@ use std::io::Write;
 use std::u8;
 
 use crate::error::Error;
+use crate::error::Result;
 use crate::model::Color;
 
 use super::Canvas;
 use super::CanvasCoordinate;
 use super::Displayer;
-use super::ERROR_OUTPUT_NOT_SET;
-
-pub const ERROR_CHARSET_NOT_SET: Error = Error {
-    message: "charset not set",
-};
 
 pub const DEFAULT_CHARSET: &str =
     " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
 
+#[derive(Debug)]
 pub struct TextDisplay<T: Write> {
     charset: &'static str,
     charset_len: usize,
@@ -32,7 +29,7 @@ pub struct TextDisplayBuilder<T: Write = Stdout> {
 impl Default for TextDisplayBuilder {
     fn default() -> Self {
         Self {
-            charset: &DEFAULT_CHARSET,
+            charset: DEFAULT_CHARSET,
             output: Some(stdout()),
         }
     }
@@ -60,9 +57,9 @@ impl TextDisplayBuilder {
 }
 
 impl<T: Write> TextDisplayBuilder<T> {
-    pub fn build(self) -> Result<TextDisplay<T>, Error> {
-        if self.charset.len() == 0 {
-            return Err(ERROR_CHARSET_NOT_SET);
+    pub fn build(self) -> Result<TextDisplay<T>> {
+        if self.charset.is_empty() {
+            return Err(Error::MissingParams("charset not set".to_owned()));
         }
 
         match self.output {
@@ -71,7 +68,7 @@ impl<T: Write> TextDisplayBuilder<T> {
                 charset_len: self.charset.len(),
                 output: stream,
             }),
-            None => Err(ERROR_OUTPUT_NOT_SET),
+            None => Err(Error::MissingParams("output not set".to_owned())),
         }
     }
 }
@@ -87,7 +84,7 @@ impl<T: Write> TextDisplay<T> {
 }
 
 impl<T: Write> Displayer for TextDisplay<T> {
-    fn show(&mut self, c: &Canvas) {
+    fn show(&mut self, c: &Canvas) -> Result<usize> {
         let line_width = c.get_width() + 1;
         let buffer_size = c.get_height() * line_width;
         let buffer: Vec<u8> = (0..buffer_size)
@@ -95,14 +92,13 @@ impl<T: Write> Displayer for TextDisplay<T> {
                 if i % line_width == 0 {
                     return b'\n';
                 }
-
                 match c.get_content(CanvasCoordinate::Linear(i - i / line_width)) {
-                    Some(color) => self.color_to_char(&color) as u8,
-                    None => b' ',
+                    Ok(color) => self.color_to_char(&color) as u8,
+                    Err(_) => b' ',
                 }
             })
             .collect();
 
-        let _ = self.output.write(&buffer);
+        self.output.write(&buffer).map_err(Error::from)
     }
 }

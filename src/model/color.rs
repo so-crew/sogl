@@ -1,12 +1,6 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Color {
     value: u32,
-}
-
-impl Default for Color {
-    fn default() -> Color {
-        Color { value: 0 }
-    }
 }
 
 impl Color {

@@ -1,8 +1,6 @@
 extern crate sogl;
 
-use std::io;
-
-use sogl::display::{Canvas, CanvasCoordinate, Displayer, TextDisplayBuilder, DEFAULT_CHARSET};
+use sogl::display::{Canvas, CanvasCoordinate, Displayer, TextDisplayBuilder};
 use sogl::model::Color;
 
 fn main() {
@@ -10,23 +8,17 @@ fn main() {
 
     let mut subject = Canvas::new(size, size);
 
-    for j in 0..size {
-        for i in 0..size {
-            let val = (i * u8::MAX as usize / size) as u8;
-            let _ = subject.set_content(
-                CanvasCoordinate::Cartesian(j, i),
-                &Color::new(val, val, val, u8::MAX),
-            );
-        }
+    for i in 0..size.pow(2) {
+        let val = (i * u8::MAX as usize / size) as u8;
+        let _ = subject.set_content(
+            CanvasCoordinate::Linear(i),
+            Color::new(val, val, val, u8::MAX),
+        );
     }
 
-    let stream = io::stdout().lock();
-
-    let mut displayer = TextDisplayBuilder::new()
-        .set_charset(DEFAULT_CHARSET)
-        .set_output(stream)
+    let mut displayer = TextDisplayBuilder::default()
         .build()
         .unwrap();
 
-    displayer.show(&subject);
+    let _ = displayer.show(&subject);
 }

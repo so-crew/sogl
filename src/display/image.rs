@@ -1,12 +1,8 @@
 use std::{fs::File, io::Write};
 
-use crate::error::Error;
+use crate::error::{Error, Result};
 
-use super::{Canvas, Displayer, ERROR_OUTPUT_NOT_SET};
-
-pub const ERROR_IMAGE_FORMAT_NOT_SET: Error = Error {
-    message: "image format not set",
-};
+use super::{Canvas, Displayer};
 
 pub const DEFAULT_IMAGE_FORMAT: ImageFormat = ImageFormat::Bitmap(BitmapOptions {
     bits_per_pixel: BitmapBitsPerPixel::Palletize4Bit,
@@ -23,7 +19,7 @@ const BITMAP_NUMBER_OF_PLANE: u16 = 0x0001;
 const BITMAP_IMAGE_DATA_OFFET: u32 = 0x00000036;
 const BITMAP_EMPTY_4BYTES: u32 = 0x00000000;
 
-#[derive(Clone, Copy)]
+#[derive(Debug)]
 pub enum BitmapBitsPerPixel {
     Monochrome,
     Palletize4Bit,
@@ -54,14 +50,15 @@ impl BitmapBitsPerPixel {
     }
 
     pub fn colors_used(&self) -> u32 {
-        return 2_u32.pow(self.byte_per_pixel() as u32);
+        2_u32.pow(self.byte_per_pixel() as u32)
     }
 
     pub fn important_colors(&self) -> u32 {
-        return 0;
+        0
     }
 }
 
+#[derive(Debug)]
 pub enum BitmapCompression {
     BIRGB,
     BIRLE8,
@@ -78,6 +75,7 @@ impl BitmapCompression {
     }
 }
 
+#[derive(Debug)]
 pub struct BitmapOptions {
     pub bits_per_pixel: BitmapBitsPerPixel,
     pub compression: BitmapCompression,
@@ -85,6 +83,7 @@ pub struct BitmapOptions {
     pub y_pixels_per_meter: u32,
 }
 
+#[derive(Debug)]
 pub enum ImageFormat {
     Bitmap(BitmapOptions),
 }
@@ -94,6 +93,7 @@ pub struct ImageDisplayBuilder<T: Write = File> {
     output: Option<T>,
 }
 
+#[derive(Debug)]
 pub struct ImageDisplay<T: Write = File> {
     image_format: ImageFormat,
     output: T,
@@ -133,22 +133,22 @@ impl ImageDisplayBuilder {
 }
 
 impl<T: Write> ImageDisplayBuilder<T> {
-    pub fn build(self) -> Result<ImageDisplay<T>, Error> {
+    pub fn build(self) -> Result<ImageDisplay<T>> {
         Ok(ImageDisplay {
             image_format: match self.image_format {
                 Some(image_format) => image_format,
-                None => return Err(ERROR_IMAGE_FORMAT_NOT_SET),
+                None => return Err(Error::MissingParams("image format not set".to_owned())),
             },
             output: match self.output {
                 Some(stream) => stream,
-                None => return Err(ERROR_OUTPUT_NOT_SET),
+                None => return Err(Error::MissingParams("output not set".to_owned())),
             },
         })
     }
 }
 
 impl<T: Write> Displayer for ImageDisplay<T> {
-    fn show(&mut self, c: &Canvas) {
+    fn show(&mut self, c: &Canvas) -> Result<usize> {
         match &self.image_format {
             ImageFormat::Bitmap(opt) => {
                 let image_size = c.get_size() as u32 * opt.bits_per_pixel.byte_per_pixel() as u32;
@@ -192,26 +192,28 @@ impl<T: Write> Displayer for ImageDisplay<T> {
                 match opt.bits_per_pixel {
                     BitmapBitsPerPixel::Monochrome => todo!(),
                     BitmapBitsPerPixel::Palletize4Bit => todo!(),
-                    BitmapBitsPerPixel::Palletize8Bit => {
-                        let _ = self.output.write(
+                    BitmapBitsPerPixel::Palletize8Bit => self
+                        .output
+                        .write(
                             c.get_contents()
                                 .iter()
                                 .map(|c| c.intensity())
                                 .collect::<Vec<u8>>()
                                 .as_slice(),
-                        );
-                    }
+                        )
+                        .map_err(Error::from),
                     BitmapBitsPerPixel::Rgb16Bit => todo!(),
-                    BitmapBitsPerPixel::Rgb24Bit => {
-                        let _ = self.output.write(
+                    BitmapBitsPerPixel::Rgb24Bit => self
+                        .output
+                        .write(
                             c.get_contents()
                                 .iter()
                                 .map(|c| [c.blue(), c.green(), c.red()])
                                 .collect::<Vec<[u8; 3]>>()
                                 .concat()
                                 .as_slice(),
-                        );
-                    }
+                        )
+                        .map_err(Error::from),
                 }
             }
         }

@@ -14,7 +14,7 @@ fn main() {
         let val = (i * u8::MAX as usize / size) as u8;
         let _ = subject.set_content(
             CanvasCoordinate::Linear(i),
-            &Color::new(val, val, val, u8::MAX),
+            Color::new(val, val, val, u8::MAX),
         );
     }
 
@@ -25,5 +25,5 @@ fn main() {
         .build()
         .unwrap();
 
-    displayer.show(&subject);
+    let _ = displayer.show(&subject);
 }
