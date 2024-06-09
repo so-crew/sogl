@@ -4,17 +4,19 @@ use std::io;
 
 use sogl::display::{
     BitmapBitsPerPixel, BitmapCompression, BitmapOptions, ImageDisplayBuilder, ImageFormat,
-    ERROR_IMAGE_FORMAT_NOT_SET, ERROR_OUTPUT_NOT_SET,
 };
 
 #[cfg(test)]
 mod image_displayer_builder_tests {
+
+    use sogl::error::Error;
+
     use super::*;
 
     #[test]
     fn test_build_image_displayer_no_image_format() {
-        let result = ImageDisplayBuilder::new().build();
-        assert!(matches!(result, Err(ERROR_IMAGE_FORMAT_NOT_SET)));
+        let result = ImageDisplayBuilder::new().build().unwrap_err();
+        assert!(matches!(result, Error::MissingParams(_)));
     }
 
     #[test]
@@ -26,9 +28,10 @@ mod image_displayer_builder_tests {
                 x_pixels_per_meter: i32::MAX as u32,
                 y_pixels_per_meter: i32::MAX as u32,
             }))
-            .build();
+            .build()
+            .unwrap_err();
 
-        assert!(matches!(result, Err(ERROR_OUTPUT_NOT_SET)));
+        assert!(matches!(result, Error::MissingParams(_)));
     }
 
     #[test]

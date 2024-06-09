@@ -1,22 +1,25 @@
-use std::io::Write;
+use std::{fs::File, io::Write};
 
-use crate::error::Error;
+use crate::error::{Error, Result};
 
-use super::{Canvas, Displayer, ERROR_OUTPUT_NOT_SET};
+use super::{Canvas, Displayer};
 
-pub const ERROR_IMAGE_FORMAT_NOT_SET: Error = Error {
-    message: "image format not set",
-};
+pub const DEFAULT_IMAGE_FORMAT: ImageFormat = ImageFormat::Bitmap(BitmapOptions {
+    bits_per_pixel: BitmapBitsPerPixel::Palletize4Bit,
+    compression: BitmapCompression::BIRGB,
+    x_pixels_per_meter: u32::MAX,
+    y_pixels_per_meter: u32::MAX,
+});
 
-const BITMAP_HEADER_LEN: usize = 14;
-const BITMAP_INFO_HEADER_LEN: usize = 40;
+const BITMAP_HEADER_LEN: u32 = 14;
+const BITMAP_INFO_HEADER_LEN: u32 = 40;
 
-const BITMAP_FILE_SIGNATURE: &[u8] = &[b'B', b'M'];
-const BITMAP_NUMBER_OF_PLANE: &[u8] = &[0x01, 0x00];
-const BITMAP_IMAGE_DATA_OFFET: &[u8] = &[0x36, 0x00, 0x00, 0x00];
-const BITMAP_EMPTY_4BYTES: &[u8] = &[0x00, 0x00, 0x00, 0x00];
+const BITMAP_FILE_SIGNATURE: u16 = 0x4D42;
+const BITMAP_NUMBER_OF_PLANE: u16 = 0x0001;
+const BITMAP_IMAGE_DATA_OFFET: u32 = 0x00000036;
+const BITMAP_EMPTY_4BYTES: u32 = 0x00000000;
 
-#[derive(Clone, Copy)]
+#[derive(Debug)]
 pub enum BitmapBitsPerPixel {
     Monochrome,
     Palletize4Bit,
@@ -47,14 +50,15 @@ impl BitmapBitsPerPixel {
     }
 
     pub fn colors_used(&self) -> u32 {
-        return 2_u32.pow(self.byte_per_pixel() as u32);
+        2_u32.pow(self.byte_per_pixel() as u32)
     }
 
     pub fn important_colors(&self) -> u32 {
-        return 0;
+        0
     }
 }
 
+#[derive(Debug)]
 pub enum BitmapCompression {
     BIRGB,
     BIRLE8,
@@ -71,6 +75,7 @@ impl BitmapCompression {
     }
 }
 
+#[derive(Debug)]
 pub struct BitmapOptions {
     pub bits_per_pixel: BitmapBitsPerPixel,
     pub compression: BitmapCompression,
@@ -78,110 +83,137 @@ pub struct BitmapOptions {
     pub y_pixels_per_meter: u32,
 }
 
+#[derive(Debug)]
 pub enum ImageFormat {
     Bitmap(BitmapOptions),
 }
 
-pub struct ImageDisplayBuilder<'a> {
+pub struct ImageDisplayBuilder<T: Write = File> {
     image_format: Option<ImageFormat>,
-    output: Option<&'a mut dyn Write>,
+    output: Option<T>,
 }
 
-pub struct ImageDisplay<'a> {
+#[derive(Debug)]
+pub struct ImageDisplay<T: Write = File> {
     image_format: ImageFormat,
-    output: &'a mut dyn Write,
+    output: T,
 }
 
-impl<'a> ImageDisplayBuilder<'a> {
-    pub fn new() -> ImageDisplayBuilder<'a> {
+impl Default for ImageDisplayBuilder {
+    fn default() -> ImageDisplayBuilder {
+        ImageDisplayBuilder {
+            image_format: Some(DEFAULT_IMAGE_FORMAT),
+            output: match File::create("out.bmp") {
+                Ok(stream) => Some(stream),
+                Err(_) => None,
+            },
+        }
+    }
+}
+
+impl ImageDisplayBuilder {
+    pub fn new() -> ImageDisplayBuilder {
         ImageDisplayBuilder {
             image_format: None,
             output: None,
         }
     }
 
-    pub fn set_image_format(mut self, image_format: ImageFormat) -> ImageDisplayBuilder<'a> {
+    pub fn set_image_format(mut self, image_format: ImageFormat) -> ImageDisplayBuilder {
         self.image_format = Some(image_format);
         self
     }
 
-    pub fn set_output(mut self, stream: &'a mut dyn Write) -> ImageDisplayBuilder<'a> {
-        self.output = Some(stream);
-        self
+    pub fn set_output<T: Write>(self, stream: T) -> ImageDisplayBuilder<T> {
+        ImageDisplayBuilder {
+            image_format: self.image_format,
+            output: Some(stream),
+        }
     }
+}
 
-    pub fn build(self) -> Result<ImageDisplay<'a>, Error> {
+impl<T: Write> ImageDisplayBuilder<T> {
+    pub fn build(self) -> Result<ImageDisplay<T>> {
         Ok(ImageDisplay {
             image_format: match self.image_format {
                 Some(image_format) => image_format,
-                None => return Err(ERROR_IMAGE_FORMAT_NOT_SET),
+                None => return Err(Error::MissingParams("image format not set".to_owned())),
             },
             output: match self.output {
                 Some(stream) => stream,
-                None => return Err(ERROR_OUTPUT_NOT_SET),
+                None => return Err(Error::MissingParams("output not set".to_owned())),
             },
         })
     }
 }
 
-impl<'a> Displayer for ImageDisplay<'a> {
-    fn show(&mut self, c: &Canvas) {
+impl<T: Write> Displayer for ImageDisplay<T> {
+    fn show(&mut self, c: &Canvas) -> Result<usize> {
         match &self.image_format {
             ImageFormat::Bitmap(opt) => {
                 let image_size = c.get_size() as u32 * opt.bits_per_pixel.byte_per_pixel() as u32;
-                let file_size = (BITMAP_HEADER_LEN + BITMAP_INFO_HEADER_LEN) as u32 + image_size;
+                let file_size = BITMAP_HEADER_LEN + BITMAP_INFO_HEADER_LEN + image_size;
 
                 // Write header
                 let _ = self.output.write(
-                    &[
-                        &BITMAP_FILE_SIGNATURE[..],
-                        &file_size.to_le_bytes(),
-                        &BITMAP_EMPTY_4BYTES,
-                        &BITMAP_IMAGE_DATA_OFFET,
+                    [
+                        BITMAP_FILE_SIGNATURE.to_le_bytes().as_slice(),
+                        file_size.to_le_bytes().as_slice(),
+                        BITMAP_EMPTY_4BYTES.to_le_bytes().as_slice(),
+                        BITMAP_IMAGE_DATA_OFFET.to_le_bytes().as_slice(),
                     ]
-                    .concat(),
+                    .concat()
+                    .as_slice(),
                 );
 
                 // Write info header
                 let _ = self.output.write(
-                    &[
-                        &BITMAP_INFO_HEADER_LEN.to_le_bytes()[0..4],
-                        &c.get_width().to_le_bytes()[0..4],
-                        &c.get_height().to_le_bytes()[0..4],
-                        &BITMAP_NUMBER_OF_PLANE[..],
-                        &opt.bits_per_pixel.value().to_le_bytes(),
-                        &opt.compression.value().to_le_bytes(),
-                        &image_size.to_le_bytes(),
-                        &opt.x_pixels_per_meter.to_le_bytes(),
-                        &opt.y_pixels_per_meter.to_le_bytes(),
-                        &opt.bits_per_pixel.colors_used().to_le_bytes(),
-                        &opt.bits_per_pixel.important_colors().to_le_bytes(),
+                    [
+                        BITMAP_INFO_HEADER_LEN.to_le_bytes().as_slice(),
+                        c.get_width().to_le_bytes().split_at(4).0,
+                        c.get_height().to_le_bytes().split_at(4).0,
+                        BITMAP_NUMBER_OF_PLANE.to_le_bytes().as_slice(),
+                        opt.bits_per_pixel.value().to_le_bytes().as_slice(),
+                        opt.compression.value().to_le_bytes().as_slice(),
+                        image_size.to_le_bytes().as_slice(),
+                        opt.x_pixels_per_meter.to_le_bytes().as_slice(),
+                        opt.y_pixels_per_meter.to_le_bytes().as_slice(),
+                        opt.bits_per_pixel.colors_used().to_le_bytes().as_slice(),
+                        opt.bits_per_pixel
+                            .important_colors()
+                            .to_le_bytes()
+                            .as_slice(),
                     ]
-                    .concat(),
+                    .concat()
+                    .as_slice(),
                 );
 
                 // Write pixel data
                 match opt.bits_per_pixel {
                     BitmapBitsPerPixel::Monochrome => todo!(),
                     BitmapBitsPerPixel::Palletize4Bit => todo!(),
-                    BitmapBitsPerPixel::Palletize8Bit => {
-                        let _ = self.output.write(
-                            &c.get_contents()
-                                .into_iter()
-                                .map(|c| c.grayscale())
-                                .collect::<Vec<u8>>(),
-                        );
-                    }
+                    BitmapBitsPerPixel::Palletize8Bit => self
+                        .output
+                        .write(
+                            c.get_contents()
+                                .iter()
+                                .map(|c| c.intensity())
+                                .collect::<Vec<u8>>()
+                                .as_slice(),
+                        )
+                        .map_err(Error::from),
                     BitmapBitsPerPixel::Rgb16Bit => todo!(),
-                    BitmapBitsPerPixel::Rgb24Bit => {
-                        let _ = self.output.write(
-                            &c.get_contents()
-                                .into_iter()
+                    BitmapBitsPerPixel::Rgb24Bit => self
+                        .output
+                        .write(
+                            c.get_contents()
+                                .iter()
                                 .map(|c| [c.blue(), c.green(), c.red()])
                                 .collect::<Vec<[u8; 3]>>()
-                                .concat(),
-                        );
-                    }
+                                .concat()
+                                .as_slice(),
+                        )
+                        .map_err(Error::from),
                 }
             }
         }

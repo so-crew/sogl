@@ -1,12 +1,6 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Color {
     value: u32,
-}
-
-impl Default for Color {
-    fn default() -> Color {
-        Color { value: 0 }
-    }
 }
 
 impl Color {
@@ -32,7 +26,7 @@ impl Color {
         (self.value & 0x000000FF) as u8
     }
 
-    pub fn grayscale(&self) -> u8 {
+    pub fn intensity(&self) -> u8 {
         let temp: u16 = self.red() as u16 + self.green() as u16 + self.blue() as u16;
         (temp / 3) as u8
     }

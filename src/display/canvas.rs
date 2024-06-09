@@ -2,10 +2,7 @@ use std::{usize, vec};
 
 use crate::{error::Error, model::Color};
 
-pub const ERROR_COORDINATE_OUT_OF_RANGE: Error = Error {
-    message: "coordinate out of range",
-};
-
+#[derive(Debug)]
 pub enum CanvasCoordinate {
     Cartesian(usize, usize),
     Linear(usize),
@@ -38,19 +35,19 @@ impl Canvas {
         self.width * self.height
     }
 
-    pub fn set_content(&mut self, coord: CanvasCoordinate, color: &Color) -> Result<(), Error> {
+    pub fn set_content(&mut self, coord: CanvasCoordinate, color: Color) -> Result<(), Error> {
         match coord {
             CanvasCoordinate::Cartesian(x, y) => {
                 let idx = x * self.width + y;
                 if idx >= self.width * self.height {
-                    return Err(ERROR_COORDINATE_OUT_OF_RANGE);
+                    return Err(Error::OutOfBounds(coord));
                 }
                 self.content[idx] = color.clone();
                 Ok(())
             }
             CanvasCoordinate::Linear(i) => {
                 if i >= self.width * self.height {
-                    return Err(ERROR_COORDINATE_OUT_OF_RANGE);
+                    return Err(Error::OutOfBounds(coord));
                 }
                 self.content[i] = color.clone();
                 Ok(())
@@ -58,20 +55,20 @@ impl Canvas {
         }
     }
 
-    pub fn get_content(&self, coord: CanvasCoordinate) -> Option<Color> {
+    pub fn get_content(&self, coord: CanvasCoordinate) -> Result<Color, Error> {
         match coord {
             CanvasCoordinate::Cartesian(x, y) => {
                 let idx = x * self.width + y;
                 if idx >= self.width * self.height {
-                    return None;
+                    return Err(Error::OutOfBounds(coord));
                 }
-                Some(self.content[idx].clone())
+                Ok(self.content[idx].clone())
             }
             CanvasCoordinate::Linear(i) => {
                 if i >= self.width * self.height {
-                    return None;
+                    return Err(Error::OutOfBounds(coord));
                 }
-                Some(self.content[i].clone())
+                Ok(self.content[i].clone())
             }
         }
     }
